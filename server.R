@@ -34,7 +34,7 @@ shinyServer(function(input, output) {
     -(log(1-u))*(lambda^(-1))
   }
   
-  #simulaciÃÂ³n del vector
+  #simulaciÃÂÃÂ³n del vector
   dataInput2 <- reactive({
                 sims.vec <- data.frame(
                                       simulaciona = ExpInv(
@@ -62,7 +62,7 @@ shinyServer(function(input, output) {
                   summary(tab$simulaciona)
   })
   
-  #acumulaciÃÂ³n de teÃÂ³rica contra empÃÂ­rica
+  #acumulaciÃÂÃÂ³n de teÃÂÃÂ³rica contra empÃÂÃÂ­rica
   output$ggacumu<-renderPlotly({
     tab <- dataInput2()
     data.cum <- data.frame(
