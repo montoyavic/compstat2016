@@ -14,9 +14,11 @@ library(readr)
 library(xtable)
 library(knitr)
 library(plotly)
+library(Rcpp)
 #carga funcion R
 source("Funciones/funciones.R")
-#el mcmc corre en R, no me salio en RCPP pero lo adjunto en la carpeta de funciones
+
+sourceCpp("Funciones/funciones.cpp")
 
 shinyServer(function(input, output) {
   
@@ -220,24 +222,7 @@ shinyServer(function(input, output) {
     
   })
   
-# output$xtesttest <- renderTable({
-#   tab <- Intreact() %>% 
-#     filter(simid == max(simid)) %>% 
-#     .[, c(-1, -4)] 
-#   names(tab) <- c("Val. Esperado", "Desv. Estandar",
-#                   'Lim. Inf', 'Lim. Sup')
-#   tab <- print( xtable(tab, 
-#                        align=rep("c", ncol(tab)+1), 
-#                        digits = c(0, 2, 2, 2, 2)),
-#                 include.rownames=FALSE,
-#                 floating=FALSE, tabular.environment="array", 
-#                 comment=FALSE, print.results=FALSE)
-#   html <- paste0("$$", tab, "$$")
-#   withMathJax(HTML(html))
-#   tab
-#   
-# })
-  
+
   output$gg.simsint3 <- renderPlot({
     gg <- ggplot(Intreact(), aes(x = simid, y = muest)) + 
       geom_ribbon(aes(ymin = lowint, ymax = uppint), 
@@ -265,19 +250,23 @@ shinyServer(function(input, output) {
   #############################################################
   ######REGRESION BAYESIANA
   #############################################################
-  
+  dataInput33 <- reactive({
+    datos <- read_csv('Datos/ensatarea3final.csv')
+    datos
+  })
   
   
   #tabla ensanut
   output$datatableensanut<- DT::renderDataTable(DT::datatable({
-    datos <- read_csv('Datos/ensatarea3final.csv')
+    #datos <- read_csv('Datos/ensatarea3final.csv')
+    datos<-dataInput33()
     datos
   }))#tabla ensanut
   
   #dipsersion de datos
   output$ggensadisp<- renderPlot({
-    datos <- read_csv('Datos/ensatarea3final.csv')
-     
+    #datos <- read_csv('Datos/ensatarea3final.csv')
+    datos<-dataInput33()
      scater <- ggplot(datos, aes(x = PESON, y = TALLAN)) + 
                   geom_point(colour='#D81B60')+
                   xlab("Peso")+
@@ -289,16 +278,25 @@ shinyServer(function(input, output) {
   #funciones a priori tarea 4
   output$ggprioris <- renderPlot({
     
-    gg1 <- ggplot(data.frame(x = rnorm(100, input$muaui, input$saui)), 
-                  aes(x = x)) + 
-      stat_function(fun = dnorm, colour = "#00E676", 
-                    size = 2,
-                    args = list(mean = input$muaui, 
-                                sd = input$saui)) + 
-      ggtitle("Funcion apriori de 'a', normal: ") +
-      ylab("Densidad") + 
-      xlab("Soporte") 
-      
+  #  gg1 <- ggplot(data.frame(x = rnorm(100, input$muaui, input$saui)), 
+  #                aes(x = x)) + 
+  #    stat_function(fun = dnorm, colour = "#00E676", 
+  #                  size = 2,
+  #                  args = list(mean = input$muaui, 
+  #                              sd = input$saui)) + 
+  #    ggtitle("Funcion apriori de 'a', normal: ") +
+  #    ylab("Densidad") + 
+  #    xlab("Soporte") 
+    
+    gg1 <- ggplot(data.frame(x = runif(100,min = 0,max=input$lsaui)), 
+                                 aes(x = x)) + 
+                     stat_function(fun = dunif, colour = "#00E676", 
+                                   size = 2,
+                                   args = list(min = 0,max=input$lsaui)) + 
+                     ggtitle("Funcion apriori de 'a', uniforme: ") +
+                     ylab("Densidad") + 
+                     xlab("Soporte") 
+  
     
     gg2 <- ggplot(data.frame(x = rnorm(100, input$mubui, input$sbui)), 
                   aes(x = x)) + 
@@ -311,34 +309,39 @@ shinyServer(function(input, output) {
       xlab("Soporte") 
       
     
-    gg3 <- ggplot(data.frame(x = rgamma(100, shape = input$ss, 
-                                        rate = input$rs)), 
+    #gg3 <- ggplot(data.frame(x = rgamma(100, shape = input$ss, 
+    #                                    rate = input$rs)),
+    gg3<- ggplot(data.frame(x=runif(n = 100,min = 0,max = input$rs)),
                   aes(x = x)) + 
-      stat_function(fun = dgamma, colour = "#00E676", 
+      stat_function(fun = dunif, colour = "#00E676", 
                     size = 2,
-                    args = list(shape = input$ss, rate = input$rs)) + 
-      ggtitle("Funcion apriori de 's', gamma: ") + 
+                    args = list(min = 0,max = input$rs)) + 
+      ggtitle("Funcion apriori de 's', uniforme: ") + 
       ylab("Densidad") + 
-      xlab("Soporte")  
+      xlab("Soporte")
+    
     gridExtra::grid.arrange(gg1, gg2, gg3, nrow = 1)
   }) #funciones apriori tarea 4
   
   #simulacion mcmc
   sims_mcmcserv<- reactive({
-    datos <- read_csv('Datos/ensatarea3final.csv')
+    #datos <- read_csv('Datos/ensatarea3final.csv')
+    datos<-dataInput33()
     
     cadenastot<- lapply(1:input$ncadeui,function(i){
       
-      sims.mat <- run_metropolis_mcmc_r( inits =  runif(3, .1, 1) ,
-                                         nsims = as.numeric(input$nsimbayeui), 
-                                         yobs = datos$PESON, 
-                                         xind = datos$TALLAN, 
-                                         paramsa = c(as.numeric(input$muaui), 
-                                                     as.numeric(input$saui)), 
-                                         paramsb = c(as.numeric(input$mubui), 
-                                                     as.numeric(input$sbui)), 
-                                         paramss = c(as.numeric(input$rs),
-                                                     as.numeric(input$ss)) ) %>% 
+
+      sims.mat<-runMCMC(datos$PESON,
+                        datos$TALLAN,
+                        startValue = c(1,2,3),
+                        iterations = as.numeric(input$nsimbayeui),
+                        lsa3 = input$lsaui,
+                        mub3 = input$mubui,
+                        sdb3 = input$sbui,
+                        lss3 = input$rs
+                        )%>% 
+        
+       
         as.data.frame() %>% 
         as.tbl() %>% 
         rename(a = V1, b = V2, s = V3) %>% 
@@ -360,7 +363,7 @@ shinyServer(function(input, output) {
       mutate(num.sim = parse_number(num.sim))
     
     ggplot(sims.matall, aes(x=sim, y=..density.., fill=cadena))+
-      geom_histogram(alpha=.4, fill="#D81B60")+
+      geom_histogram(alpha=.4)+
       facet_wrap(~param, scales = "free") + 
       xlab("Estimacion") + 
       ylab("Densidad")
@@ -373,23 +376,80 @@ shinyServer(function(input, output) {
     
     ggplot(sims.matall, aes( x= num.sim, y = sim,
                             color = cadena, group = cadena)) +
-      geom_line(color = "#1B5E20") +
+      geom_line() +
       facet_wrap(~param, scales = "free") +
       ylab("Simulacion")
   })
+  
+  output$ggadjustsim<-renderPlot({
+    #datos <- read_csv('Datos/ensatarea3final.csv')
+    datos<-dataInput33()
+    cadenastot <- sims_mcmcserv()
+    datosburn <- floor(max(cadenastot$num.sim)*input$burninui)
+    
+    
+    tablesimus <- cadenastot  %>%
+      gather(param, sim, a:s) %>% 
+      mutate(num.sim = parse_number(num.sim)) %>% 
+      filter( num.sim >= datosburn)
+      newa<-mean(tablesimus[tablesimus$param=='b',]$sim)
+      newb<-mean(tablesimus[tablesimus$param=='a',]$sim)
+      news<-mean(tablesimus[tablesimus$param=='s',]$sim)
+
+    
+
+      scaterad <- ggplot(datos, aes(x = PESON, y = TALLAN)) + 
+        geom_point(colour='#D81B60')+
+        geom_abline(intercept = newa, slope = newb,show.legend = T)+
+        geom_smooth(method = "lm", se = FALSE,show.legend = T)+
+        annotate("text",label="ajuste RL", colour='blue',x=65,y=175)+
+        annotate("text",label="ajuste MH", colour='black',x=20,y=200)+
+        xlab("Peso")+
+        ylab("Talla")
+      print(scaterad)
+    
+  })
+  
+  
+  BajaSimus <- reactive({
+    sims_mcmcserv()  %>%
+      gather(param, sim, a:s) %>% 
+      mutate(num.sim = parse_number(num.sim)) %>% 
+      filter(param == input$bajaparam)
+  })
+  
+  
+  output$bajasimu <- downloadHandler(
+    filename = function() { "simulacion_MH.csv" },
+    content = function(file) {
+      write.csv(BajaSimus(), file)
+    }
+  )
+  
+  output$tablasimu <- renderDataTable(
+    BajaSimus() ,
+    options = list(
+      pageLength = 10
+    )
+  ) 
+  
+  
+  
+  
+  
+  
   
   output$resumcmcsim <- renderUI({
     
     cadenastot <- sims_mcmcserv()
     datosburn <- floor(max(cadenastot$num.sim)*input$burninui)
     
-    #tab.m <- cadenastot  %>%
     tablesimus <- cadenastot  %>%
       gather(param, sim, a:s) %>% 
       mutate(num.sim = parse_number(num.sim)) %>% 
       filter( num.sim >= datosburn)
     
-    #tab.sum <- tab.m %>% 
+
     tabsumma <- tablesimus %>% 
       group_by(param) %>% 
       summarize(
@@ -404,12 +464,12 @@ shinyServer(function(input, output) {
       ) 
     
     if(input$ncadeui > 1){
-      #tab.sum <- tab.sum %>% 
+
       tabsumma <- tabsumma %>% 
         left_join(
           RhatFun(tablesimus, 
                   n.sims= input$nsimbayeui, 
-                  n.cadenas = input$ncadenas.4 ), 
+                  n.cadenas = input$ncadeui ), 
           by = "param"
         )
     }
@@ -429,20 +489,24 @@ shinyServer(function(input, output) {
   }) 
   
   output$statsensa1 <- renderPrint({
-    datos <- read_csv('Datos/ensatarea3final.csv')
+    #datos <- read_csv('Datos/ensatarea3final.csv')
+    datos<-dataInput33()
     summary(datos$PESON)
   })
   
   output$statsensa2 <- renderPrint({
-    datos <- read_csv('Datos/ensatarea3final.csv')
+    #datos <- read_csv('Datos/ensatarea3final.csv')
+    datos<-dataInput33()
     summary(datos$TALLAN)
   })
   
   output$statsensa3 <- renderPrint({
-    datos <- read_csv('Datos/ensatarea3final.csv')
+    #datos <- read_csv('Datos/ensatarea3final.csv')
+    datos<-dataInput33()
     x<- datos$PESON
     y<- datos$TALLAN
-    lm(y~x)
+    dataaux<-lm(y~x)
+    summary(dataaux)
   })
   
 })

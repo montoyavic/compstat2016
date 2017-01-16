@@ -167,44 +167,37 @@ shinyUI(fluidPage(
                       #sidebar bayesiana
                       sidebarPanel(width = 3,
                                    h2('Parametros funcion ApriorI: '),
-                                   strong(h3("Parametros de a")),
+                                   strong(h3("Parametro de a")),
+                                   
                                    fluidRow(
-                                     column(5, numericInput(inputId	="muaui", label = "Media a:", 
+                                     column(5, numericInput(inputId = "lsaui", "Lim S:", 
                                                             width = 100,
-                                                            min = -100, max = 100, value = 0
-                                     )),
-                                     column(6, numericInput(inputId	="saui", label = "D. Estandar a:",
-                                                            width = 100,
-                                                            min = 0.01, max = 100, value = 10
+                                                            min = 1, max = 100, value = 50
                                      ))
                                    ),
                                    strong(h3("Parametros de b")),
                                    fluidRow(
                                      column(5, numericInput(inputId	="mubui", label = "Media b:", 
                                                             width = 100,
-                                                            min = -100, max = 100, value = 0
+                                                            min = -10, max = 10, value = 0
                                      )),
                                      column(6, numericInput(inputId	="sbui", label = "D. Estandar b:",
                                                             width = 100,
-                                                            min = 0.01, max = 100, value = 10
+                                                            min = 0.01, max = 20, value = 5
                                      ))
                                    ),
-                                   strong(h3("Parametros de s")),
+                                   strong(h3("Parametro de s")),
                                    fluidRow(
-                                     column(5, numericInput(inputId = "rs", "Rate b:", 
+                                     column(5, numericInput(inputId = "rs", "Lim S:", 
                                                             width = 100,
-                                                            min = 0.01, max = 100, value = 1
-                                     )),
-                                     column(6, numericInput(inputId = "ss", "Shape b:", 
-                                                            width = 100,
-                                                            min = 0.01, max = 100, value = 1
+                                                            min = 1, max = 100, value = 50
                                      ))
                                    ),
                                    br(),
                                    h2("Parametros Metropolis"),
                                    strong(h4("Numero de Simulaciones")),
                                    sliderInput("nsimbayeui", "Elige el numero: ",
-                                               min = 30, max = 5000, value = 380, step = 10),
+                                              min = 1000, max = 15000, value = 1107, step = 10),
                                    br(),
                                    strong(h4("Numero de Cadenas")),
                                    sliderInput("ncadeui", "Elige el numero: ",
@@ -215,30 +208,75 @@ shinyUI(fluidPage(
                                    submitButton("Update View", icon("refresh"))
                       ),
                       mainPanel(
-                        h2("ENSANUT MUJERES 2006, PESO Y TALLA:"),
-                        h3("Datos provenientes de la Encuesta Nacional de Salud 2006, Mujeres"),
-                        h4("http://datos.gob.mx/busca/dataset/encuesta-nacional-de-salud-y-nutricion-2006-ensanut"),
-                        DT::dataTableOutput("datatableensanut"),
-                        h2("Dispersion de los datos:"),
-                        plotOutput("ggensadisp", width = 450, height = 350),
-                        br(),
-                        h2("Datos centrales de datos de peso ensanut"),
-                        verbatimTextOutput("statsensa1"),
-                        h2("Datos centrales de datos de talla ensanut"),
-                        verbatimTextOutput("statsensa2"),
-                        h2("Estimacion lineal por minimos cuadrados X=PESO, Y=TALLA"),
-                        verbatimTextOutput("statsensa3"),
-                        h2("Funciones a priori de parÃ¡metros a, b y s:"),
-                        plotOutput("ggprioris", width = 900, height = 300),
-                        h2("SimulaciÃ³n MCMC"),
-                        h4("Densidad Simulaciones"),
-                        plotOutput("ggsimusmcmc", width = 900, height = 300),
-                        h4("Cadena"),
-                        plotOutput("gglinearmcmc", width = 900, height = 300),
-                        h4("Resumen de parametros"),
-                        uiOutput("resumcmcsim")
-                      )#Panel central bayesiana
-                 )#panel bayesiana
+                        tabsetPanel(
+                          tabPanel("Datos Ensanut",
+                            h2("ENSANUT MUJERES 2006, PESO Y TALLA:"),
+                            h3("Datos provenientes de la Encuesta Nacional de Salud 2006, Mujeres"),
+                            h4("http://datos.gob.mx/busca/dataset/encuesta-nacional-de-salud-y-nutricion-2006-ensanut"),
+                            "Encuesta que permite conocer el estado de salud y nutricion de los mexicanos.",
+                            h4("Peso y talla en mujeres, segun la encuesta de 2006: "),
+                            DT::dataTableOutput("datatableensanut")
+                            ), #tabpanel de datos
+                          tabPanel("Exploratorio",
+                            h2("Dispersion de los datos:"),
+                            plotOutput("ggensadisp", width = 450, height = 350),
+                            br(),
+                            h2("Datos centrales de datos de peso ensanut"),
+                            verbatimTextOutput("statsensa1"),
+                            h2("Datos centrales de datos de talla ensanut"),
+                            verbatimTextOutput("statsensa2")
+                          ),#tabpanel dipersiondatos y exploratorio
+                            
+                          tabPanel("MH-MCMC",
+                            h2("Funciones a priori de parametros a, b y s:"),
+                            plotOutput("ggprioris", width = 900, height = 300),
+                            h2("Simulacionn MCMC"),
+                            h4("Densidad Simulaciones"),
+                            plotOutput("ggsimusmcmc", width = 900, height = 300),
+                            h4("Cadenas Simuladas"),
+                            "Podemos observar que hay convergencia en los parametros de a, b y s",
+                            plotOutput("gglinearmcmc", width = 900, height = 300),
+                            h4("Resumen de parametros"),
+                            h4("Metricas utiles como herramientas de diagnostico,
+                            nos damos cuenta que hay convergencia y los resultados entre cadenas son aceptables"),
+                            uiOutput("resumcmcsim"),
+                            h2("Estimacion lineal por minimos cuadrados X=PESO, Y=TALLA"),
+                            verbatimTextOutput("statsensa3"),
+                            h2("Ajuste de Modelos de RL y MH"),
+                            h4("La linea azul muestra el ajuste a una linea recta mediante
+                            el metodo convencional de minimos cuadrados"),
+                            h4("La linea negra muestra el ajuste a una linea recta mediante
+                            el metodo de estimacion lineal usando el algoritmo de
+                            Metropolis-Hashtings"),
+                            h4("Se puede observar que entre mayor numero de simulaciones genere el usuario
+                            mejor es el ajuste entre lineas"),
+                            plotOutput("ggadjustsim", width = 450, height = 350)
+                          ), # tabpanel: simulacion
+                          tabPanel("Imprime Simulacion",
+                                   h4("Imprime y guarda parametro simulado"),
+                                   selectInput("bajaparam", "Elige un parametro:", 
+                                               choices = c(
+                                                 "Intercepto" = 'b', 
+                                                 "Pendiente" = 'a', 
+                                                 "Sigma s" = 's')),
+                                   br(),
+                                   fluidRow(
+                                     column(4, 
+                                            submitButton("Update View", icon("refresh"))
+                                     ),
+                                     column(4,
+                                            downloadButton('bajasimu', 'Download')
+                                     )
+                                   ),
+                                   br(),
+                                   br(),
+                                   wellPanel(
+                                     dataTableOutput("tablasimu")
+                                   )
+                                   ) 
+                          )  
+                        )#Panel central bayesiana
+                 )#panel
         )#acaban todos los paneles
   ) # fluidPage
 ) # shinyUI
